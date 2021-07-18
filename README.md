@@ -28,7 +28,7 @@ And the Magnum library should also be installed by the commands
 pacman -S mingw-w64-x86_64-magnum
 ~~~~
 
-In the root folder, ther is a file named `wx-config-msys2.exe`, which I built from the project: [eranif/wx-config-msys2: wx-config tool for MSYS2 based installation of wxWidgets using the mingw64 repository](https://github.com/eranif/wx-config-msys2). The `wx-config-msys2.exe` will be called when you click the "Build" button in Code::Blocks to generate the correct build options.
+In the root folder, there is a file named `wx-config-msys2.exe`, which I built from the project: [eranif/wx-config-msys2: wx-config tool for MSYS2 based installation of wxWidgets using the mingw64 repository](https://github.com/eranif/wx-config-msys2). The `wx-config-msys2.exe` will be called when you click the "Build" button in Code::Blocks to generate the correct build options.
 
 The source code is mainly modified from this magnum example code:
 
