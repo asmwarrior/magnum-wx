@@ -44,9 +44,11 @@ https://github.com/mosra/magnum-bootstrap/tree/base-wxwidgets
 
 # The current issue
 
-The mouse scroll event works OK, so when you scroll up/down with the mouse's wheel, you can zoom in/out the scene.
+The mouse scroll event works OK(see `void GLPanel::OnMouseScroll(wxMouseEvent &event)` function), so when you scroll up/down with the mouse's wheel, you can zoom in/out the scene.
 
-But it looks like the mouse left button drag does not rotate the scene correctly, compared with Magnum's official webgl demos here: [Mouse In­ter­ac­tion Ex­am­ple](https://magnum.graphics/showcase/mouseinteraction/)
+The key press handling works OK(see `void GLPanel::OnKeyDown(wxKeyEvent &event)` function), when you press the "0" key, the scene/camera will get reset, when you press the "1", "3" or "7" key, the scene/camera will go to the preset positions.
+
+But it looks like the mouse left button drag does not rotate the scene correctly(see `void GLPanel::OnMouseMove(wxMouseEvent &event)` function), compared with Magnum's official webgl demos here: [Mouse In­ter­ac­tion Ex­am­ple](https://magnum.graphics/showcase/mouseinteraction/), also the right mouse button drag is not working, it should translate the screne/camera.
 
 
 
