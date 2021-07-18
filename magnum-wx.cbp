@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="magnum-wx" />
+		<Option pch_mode="0" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="Debug">
+				<Option output="bin/Debug/magnum-wx" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Debug/" />
+				<Option type="0" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-g" />
+				</Compiler>
+			</Target>
+			<Target title="Release">
+				<Option output="bin/Release/magnum-wx" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Release/" />
+				<Option type="0" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-O2" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+				</Linker>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Wall" />
+			<Add option="-std=gnu++17" />
+			<Add option="-pipe" />
+			<Add option="-mthreads" />
+			<Add option="-Winvalid-pch" />
+			<Add option="-include wx_pch.h" />
+			<Add option="`wx-config-msys2 --cflags --prefix=$(TARGET_COMPILER_DIR)`" />
+			<Add option="-D__WXDEBUG__" />
+			<Add option="-D__GNUWIN32__" />
+			<Add option="-D__WXMSW__" />
+			<Add option="-DWXUSINGDLL" />
+			<Add option="-DwxUSE_UNICODE" />
+			<Add option="-DWX_PRECOMP" />
+		</Compiler>
+		<ResourceCompiler>
+			<Add option="`wx-config-msys2 --rcflags --prefix=$(TARGET_COMPILER_DIR)`" />
+		</ResourceCompiler>
+		<Linker>
+			<Add option="-mthreads" />
+			<Add option="`wx-config-msys2 --libs=all --prefix=$(TARGET_COMPILER_DIR)`" />
+			<Add library="opengl32" />
+			<Add library="glu32" />
+			<Add library="gdi32" />
+			<Add library="MagnumWglContext" />
+			<Add library="MagnumShaders" />
+			<Add library="MagnumSceneGraph" />
+			<Add library="MagnumPrimitives" />
+			<Add library="MagnumMeshTools" />
+			<Add library="MagnumTrade" />
+			<Add library="MagnumGL" />
+			<Add library="Magnum" />
+			<Add library="CorradeUtility" />
+			<Add library="CorradeMain" />
+		</Linker>
+		<Unit filename="GLPanel.cpp" />
+		<Unit filename="GLPanel.h" />
+		<Unit filename="MyOpenGLApp.cpp" />
+		<Unit filename="MyOpenGLApp.h" />
+		<Unit filename="MyOpenGLFrame.cpp" />
+		<Unit filename="MyOpenGLFrame.h" />
+		<Unit filename="resource.rc">
+			<Option compilerVar="WINDRES" />
+		</Unit>
+		<Unit filename="wx_pch.h">
+			<Option compile="1" />
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="wxsmith/MyOpenGLFrame.wxs" />
+		<Extensions>
+			<wxsmith version="1">
+				<gui name="wxWidgets" src="MyOpenGLApp.cpp" main="-- None --" init_handlers="necessary" language="CPP" />
+				<resources>
+					<wxFrame wxs="wxsmith/MyOpenGLFrame.wxs" src="MyOpenGLFrame.cpp" hdr="MyOpenGLFrame.h" fwddecl="1" i18n="1" name="MyOpenGLFrame" language="CPP" />
+				</resources>
+			</wxsmith>
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>
