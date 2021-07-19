@@ -27,6 +27,29 @@
 #include <Magnum/Shaders/Flat.h>
 #include <Magnum/Shaders/VertexColor.h>
 #include <Magnum/Trade/MeshData.h>
+#include <Magnum/Shaders/MeshVisualizer.h>
+
+#include <Corrade/Containers/Optional.h>
+#include <Magnum/DebugTools/ColorMap.h>
+#include <Magnum/ImageView.h>
+#include <Magnum/PixelFormat.h>
+#include <Magnum/GL/DefaultFramebuffer.h>
+#include <Magnum/GL/Mesh.h>
+#include <Magnum/GL/Renderer.h>
+#include <Magnum/GL/Texture.h>
+#include <Magnum/GL/TextureFormat.h>
+#include <Magnum/Math/Color.h>
+#include <Magnum/Math/Matrix4.h>
+#include <Magnum/MeshTools/Compile.h>
+//#include <Magnum/Platform/Sdl2Application.h>
+#include <Magnum/Primitives/Cube.h>
+#include <Magnum/SceneGraph/Camera.h>
+#include <Magnum/SceneGraph/Drawable.h>
+#include <Magnum/SceneGraph/MatrixTransformation3D.h>
+#include <Magnum/SceneGraph/Object.h>
+#include <Magnum/SceneGraph/Scene.h>
+#include <Magnum/Shaders/MeshVisualizer.h>
+#include <Magnum/Trade/MeshData.h>
 
 
 #include <Magnum/Primitives/Cube.h>
@@ -47,10 +70,15 @@ using namespace Magnum;
 #include <wx/sizer.h>
 #include <wx/version.h>
 
+#include "ArcBall.h"
+#include "ArcBallCamera.h"
+
 
 using Object3D = SceneGraph::Object<SceneGraph::MatrixTransformation3D>;
 using Scene3D = SceneGraph::Scene<SceneGraph::MatrixTransformation3D>;
 using namespace Math::Literals;
+
+using namespace Magnum::Examples;
 
 class GLPanel : public wxGLCanvas
 {
@@ -99,18 +127,14 @@ private:
 
     // create those objects with {NoCreate}
     // see description here: https://doc.magnum.graphics/magnum/opengl-wrapping.html#opengl-wrapping-instances-nocreate
-    Shaders::VertexColor3D _vertexColorShader{NoCreate};
-    Shaders::Flat3D _flatShader{NoCreate};
-    GL::Mesh _mesh{NoCreate}, _grid{NoCreate};
-
     Scene3D _scene;
     SceneGraph::DrawableGroup3D _drawables;
-    Object3D* _cameraObject;
-    SceneGraph::Camera3D* _camera;
+    GL::Mesh _mesh{NoCreate};
+    Containers::Optional<ArcBallCamera> _arcballCamera;
 
-    Float _lastDepth;
-    Vector2i _lastPosition{-1};
-    Vector3 _rotationPoint, _translationPoint;
+    /* Stuff for visualizing the cube */
+    Shaders::MeshVisualizer3D _shader{NoCreate};
+    GL::Texture2D _colormap{NoCreate};
 };
 
 
@@ -142,6 +166,26 @@ class FlatDrawable: public SceneGraph::Drawable3D {
 
     private:
         Shaders::Flat3D& _shader;
+        GL::Mesh& _mesh;
+};
+
+class VisualizationDrawable: public SceneGraph::Drawable3D {
+    public:
+        explicit VisualizationDrawable(Object3D& object,
+            Shaders::MeshVisualizer3D& shader, GL::Mesh& mesh,
+            SceneGraph::DrawableGroup3D& drawables):
+                SceneGraph::Drawable3D{object, &drawables}, _shader(shader),
+                _mesh(mesh) {}
+
+        void draw(const Matrix4& transformation, SceneGraph::Camera3D& camera) {
+            _shader
+                .setTransformationMatrix(transformation)
+                .setProjectionMatrix(camera.projectionMatrix())
+                .draw(_mesh);
+        }
+
+    private:
+        Shaders::MeshVisualizer3D& _shader;
         GL::Mesh& _mesh;
 };
 

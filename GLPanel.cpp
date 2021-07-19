@@ -8,51 +8,6 @@
 using namespace Corrade;
 
 
-Float GLPanel::depthAt(const Vector2i& windowPosition)
-{
-    /* First scale the position from being relative to window size to being
-       relative to framebuffer size as those two can be different on HiDPI
-       systems */
-
-    int w = GetSize().GetWidth();
-    int h = GetSize().GetHeight();
-    //const Vector2i position = windowPosition*Vector2{framebufferSize()}/Vector2{windowSize()};
-    const Vector2i position = windowPosition*Vector2{w,h}/Vector2{w,h};
-
-    const Vector2i fbPosition{position.x(), GL::defaultFramebuffer.viewport().sizeY() - position.y() - 1};
-
-    GL::defaultFramebuffer.mapForRead(GL::DefaultFramebuffer::ReadAttachment::Front);
-    Image2D data = GL::defaultFramebuffer.read(Range2Di::fromSize(fbPosition, Vector2i{1}).padded(Vector2i{2}),
-                                               {GL::PixelFormat::DepthComponent, GL::PixelType::Float});
-
-    /* TODO: change to just Math::min<Float>(data.pixels<Float>() when the
-       batch functions in Math can handle 2D views */
-    return Math::min<Float>(data.pixels<Float>().asContiguous());
-}
-
-Vector3 GLPanel::unproject(const Vector2i& windowPosition, Float depth) const
-{
-    /* We have to take window size, not framebuffer size, since the position is
-       in window coordinates and the two can be different on HiDPI systems */
-
-    int w = GetSize().GetWidth();
-    int h = GetSize().GetHeight();
-
-    //const Vector2i viewSize = windowSize();
-
-    const Vector2i viewSize{w,h}; // = windowSize();
-    const Vector2i viewPosition{windowPosition.x(), viewSize.y() - windowPosition.y() - 1};
-    const Vector3 in{2*Vector2{viewPosition}/Vector2{viewSize} - Vector2{1.0f}, depth*2.0f - 1.0f};
-
-    /*
-        Use the following to get global coordinates instead of camera-relative:
-
-        (_cameraObject->absoluteTransformationMatrix()*_camera->projectionMatrix().inverted()).transformPoint(in)
-    */
-    return _camera->projectionMatrix().inverted().transformPoint(in);
-}
-
-
 void GLPanel::ConnectEvents()
 {
     // OnPaint event handler
@@ -141,69 +96,72 @@ void GLPanel::GLInitial()
 {
     using namespace Math::Literals;
 
-    /* Shaders, renderer setup */
-    _vertexColorShader = Shaders::VertexColor3D{};
-    _flatShader = Shaders::Flat3D{};
     GL::Renderer::enable(GL::Renderer::Feature::DepthTest);
-
-    /* Triangle data */
-    const struct
-    {
-        Vector3 pos;
-        Color3 color;
-    } data[] {
-        {{-1.0f, -1.0f, 0.0f}, 0xff0000_rgbf},
-        {{ 1.0f, -1.0f, 0.0f}, 0x00ff00_rgbf},
-        {{ 0.0f,  1.0f, 0.0f}, 0x0000ff_rgbf}
-    };
-
-    /* Triangle mesh */
-    GL::Buffer buffer;
-    buffer.setData(data);
-    _mesh = GL::Mesh{};
-    _mesh.setCount(3)
-         .addVertexBuffer(std::move(buffer), 0,
-                          Shaders::VertexColor3D::Position{},
-                          Shaders::VertexColor3D::Color3{});
-
-    /* Triangle object */
-    auto triangle = new Object3D{&_scene};
-    new VertexColorDrawable{*triangle, _vertexColorShader, _mesh, _drawables};
-
-    /* Grid */
-    _grid = MeshTools::compile(Primitives::grid3DWireframe({15, 15}));
-    auto grid = new Object3D{&_scene};
-    (*grid)
-        .rotateX(90.0_degf)
-        .scale(Vector3{8.0f});
-    new FlatDrawable{*grid, _flatShader, _grid, _drawables};
-
-    /* Set up the camera */
-    _cameraObject = new Object3D{&_scene};
-    (*_cameraObject)
-        .translate(Vector3::zAxis(5.0f))
-        .rotateX(-15.0_degf)
-        .rotateY(30.0_degf);
-    _camera = new SceneGraph::Camera3D{*_cameraObject};
+    GL::Renderer::enable(GL::Renderer::Feature::FaceCulling);
 
     int w = GetSize().GetWidth();
     int h = GetSize().GetHeight();
 
-    _camera->setProjectionMatrix(Matrix4::perspectiveProjection(45.0_degf, Vector2{w,h}.aspectRatio(), 0.01f, 100.0f));
+    /* Setup a cube with vertex ID and wireframe visualized */
+    {
+        const Trade::MeshData cube = Primitives::cubeSolid();
+        _mesh = MeshTools::compile(cube);
 
-    /* Initialize initial depth to the value at scene center */
-    _lastDepth = ((_camera->projectionMatrix()*_camera->cameraMatrix()).transformPoint({}).z() + 1.0f) * 0.5f;
+        const auto map = DebugTools::ColorMap::turbo();
+        const Vector2i size{Int(map.size()), 1};
+        _colormap = GL::Texture2D{};
+        _colormap
+            .setMinificationFilter(SamplerFilter::Linear)
+            .setMagnificationFilter(SamplerFilter::Linear)
+            .setWrapping(SamplerWrapping::ClampToEdge)
+            .setStorage(1, GL::TextureFormat::RGB8, size)
+            .setSubImage(0, {}, ImageView2D{PixelFormat::RGB8Unorm, size, map});
 
-    Utility::Debug{} << "_camera->projectionMatrix()" << _camera->projectionMatrix();
+        _shader = Shaders::MeshVisualizer3D{
+            Shaders::MeshVisualizer3D::Flag::Wireframe|
+            Shaders::MeshVisualizer3D::Flag::VertexId};
+        _shader
+            .setViewportSize(Vector2{w,h})
+            .setColor(0xffffff_rgbf)
+            .setWireframeColor(0xffffff_rgbf)
+            .setWireframeWidth(2.0f)
+            .setColorMapTransformation(0.0f, 1.0f/cube.vertexCount())
+            .bindColorMapTexture(_colormap);
 
-    Utility::Debug{} << "_camera->cameraMatrix()" << _camera->cameraMatrix();
+        auto object = new Object3D{&_scene};
+        (*object)
+            .rotateY(40.0_degf)
+            .rotateX(-30.0_degf)
+            ;
+        new VisualizationDrawable{*object, _shader, _mesh, _drawables};
+    }
 
-    Utility::Debug{} << "_lastDepth" << _lastDepth;
+    /* Set up the camera */
+    {
+        /* Setup the arcball after the camera objects */
+        int w = GetSize().GetWidth();
+        int h = GetSize().GetHeight();
+
+        const Vector3 eye = Vector3::zAxis(-10.0f);
+        const Vector3 center{};
+        const Vector3 up = Vector3::yAxis();
+        _arcballCamera.emplace(_scene, eye, center, up, 45.0_degf,
+            Vector2i{w,h}, Vector2i{w,h});
+    }
 }
 
 void GLPanel::OnResized(wxSizeEvent &event)
 {
+    int w = GetSize().GetWidth();
+    int h = GetSize().GetHeight();
+
+    //GL::defaultFramebuffer.setViewport({{}, Vector2{w,h}});
     glViewport(0, 0, GetSize().GetWidth(), GetSize().GetHeight());
+
+    _arcballCamera->reshape(Vector2i{w,h}, Vector2i{w,h});
+    _shader.setViewportSize(Vector2{w,h});
+
+
     Update();
 }
 
@@ -216,10 +174,13 @@ void GLPanel::OnPaint(wxPaintEvent &event)
         return;
     SetCurrent(*m_context);
 
-    GL::defaultFramebuffer.clear(
-        GL::FramebufferClear::Color|GL::FramebufferClear::Depth);
+    GL::defaultFramebuffer.clear(GL::FramebufferClear::Color|GL::FramebufferClear::Depth);
 
-    _camera->draw(_drawables);
+    /* Call arcball update in every frame. This will do nothing if the camera
+       has not been changed. Otherwise, camera transformation will be
+       propagated into the camera objects. */
+    bool camChanged = _arcballCamera->update();
+    _arcballCamera->draw(_drawables);
 
     SwapBuffers();
 }
@@ -227,38 +188,23 @@ void GLPanel::OnPaint(wxPaintEvent &event)
 void GLPanel::OnKeyDown(wxKeyEvent &event)
 {
     /* Reset the transformation to the original view */
-    if(event.GetKeyCode() == '0')
+    if(event.GetKeyCode() == 'L')
     {
-        (*_cameraObject)
-            .resetTransformation()
-            .translate(Vector3::zAxis(5.0f))
-            .rotateX(-15.0_degf)
-            .rotateY(30.0_degf);
+        if(_arcballCamera->lagging() > 0.0f) {
+            Debug{} << "Lagging disabled";
+            _arcballCamera->setLagging(0.0f);
+        } else {
+            Debug{} << "Lagging enabled";
+            _arcballCamera->setLagging(0.85f);
+        }
         Refresh();
         return;
 
         /* Axis-aligned view */
     }
-    else if(event.GetKeyCode() == '1'||
-            event.GetKeyCode() == '3'||
-            event.GetKeyCode() == '7')
+    else if(event.GetKeyCode() == 'R')
     {
-        /* Start with current camera translation with the rotation inverted */
-        const Vector3 viewTranslation = _cameraObject->transformation().rotationScaling().inverted()*_cameraObject->transformation().translation();
-
-        /* Front/back */
-        const Float multiplier = event.GetKeyCode() == wxKeyCode::WXK_CONTROL ? -1.0f : 1.0f;
-
-        Matrix4 transformation;
-        if(event.GetKeyCode() == '1') /* Top/bottom */
-            transformation = Matrix4::rotationX(-90.0_degf*multiplier);
-        else if(event.GetKeyCode() == '3') /* Front/back */
-            transformation = Matrix4::rotationY(90.0_degf - 90.0_degf*multiplier);
-        else if(event.GetKeyCode() == '7') /* Right/left */
-            transformation = Matrix4::rotationY(90.0_degf*multiplier);
-        else CORRADE_INTERNAL_ASSERT_UNREACHABLE();
-
-        _cameraObject->setTransformation(transformation*Matrix4::translation(viewTranslation));
+        _arcballCamera->reset();
         Refresh();
         return;
     }
@@ -281,32 +227,18 @@ void GLPanel::OnMouseMove(wxMouseEvent &event)
 
     Vector2 delta = Vector2{x_offset, y_offset};
     Vector2i pos(mouse.x, mouse.y);
+
+
     if(event.ButtonIsDown(wxMOUSE_BTN_LEFT))
     {
-        /* Rotate around rotation point */
-        _cameraObject->transformLocal(
-            Matrix4::translation(_rotationPoint)*
-            Matrix4::rotationX(-0.01_radf*delta.y())*
-            Matrix4::rotationY(-0.01_radf*delta.x())*
-            Matrix4::translation(-_rotationPoint));
-
-        std::cout << "_rotationPoint" << _rotationPoint.x() << "  "  << _rotationPoint.y() <<  "  " << _rotationPoint.z() << std::endl;
-        std::cout << "Left mouse button drag" << std::endl;
-
-        Utility::Debug{} << "_rotationPoint" << _rotationPoint;
-
-        Utility::Debug{} << "delta" << delta ;
+       _arcballCamera->rotate(pos);
 
         needRefresh = true;
     }
     else if (event.ButtonIsDown(wxMOUSE_BTN_RIGHT))
     {
-        const Vector3 p = unproject(pos, _lastDepth);
-        _cameraObject->translateLocal(_translationPoint - p); /* is Z always 0? */
-        _translationPoint = p;
 
-        std::cout<< "Right mouse button drag" << std::endl;
-
+        _arcballCamera->translate(pos);
         needRefresh = true;
     }
 
@@ -320,34 +252,12 @@ void GLPanel::OnMouseMove(wxMouseEvent &event)
 
 void GLPanel::OnMouseScroll(wxMouseEvent &event)
 {
-    //float scroll = (float)event.GetWheelRotation() / 50;
-    float scroll = (float)event.GetWheelRotation();
 
-    Vector2i pos{event.GetX(), event.GetY()};
-    const Float currentDepth = depthAt(pos);
-    const Float depth = currentDepth == 1.0f ? _lastDepth : currentDepth;
-    const Vector3 p = unproject(pos, depth);
-    /* Update the rotation point only if we're not zooming against infinite
-       depth or if the original rotation point is not yet initialized */
-    if(currentDepth != 1.0f || _rotationPoint.isZero())
-    {
-        _rotationPoint = p;
-        _lastDepth = depth;
-    }
+    const float delta = (float)event.GetWheelRotation() / 50;
 
-    //const Float direction = event.offset().y();
-    // fixme
-    const Float direction = scroll;
+    if(Math::abs(delta) < 1.0e-2f) return;
 
-    if(!direction)
-        return;
-
-    /* Move towards/backwards the rotation point in cam coords */
-    _cameraObject->translateLocal(_rotationPoint*direction*0.1f);
-
-    Utility::Debug{} << "_rotationPoint" << _rotationPoint;
-
-    Utility::Debug{} << "direction" << direction ;
+    _arcballCamera->zoom(delta);
 
     Refresh();
     event.Skip();
@@ -355,31 +265,21 @@ void GLPanel::OnMouseScroll(wxMouseEvent &event)
 
 void GLPanel::OnMouseLeftDown(wxMouseEvent &event)
 {
-    Vector2i pos{event.GetX(), event.GetY()};
+    CaptureMouse();
 
-    const Float currentDepth = depthAt(pos);
-    const Float depth = currentDepth == 1.0f ? _lastDepth : currentDepth;
-    _translationPoint = unproject(pos, depth);
+    wxPoint mouse = event.GetPosition();
+    Vector2i pos(mouse.x, mouse.y);
 
-    Utility::Debug{} << "_translationPoint" << _translationPoint;
-
-    /* Update the rotation point only if we're not zooming against infinite
-       depth or if the original rotation point is not yet initialized */
-    if(currentDepth != 1.0f || _rotationPoint.isZero())
-    {
-        _rotationPoint = _translationPoint;
-        _lastDepth = depth;
-    }
-
-    Utility::Debug{} << "_rotationPoint" << _rotationPoint;
-
-    Utility::Debug{} << "pos" << pos ;
+    _arcballCamera->initTransformation(pos);
 
     event.Skip();
 }
 
 void GLPanel::OnMouseLeftUp(wxMouseEvent &event)
 {
+    if ( HasCapture() )
+        ReleaseMouse();
+
     event.Skip();
 }
 
