@@ -120,7 +120,7 @@ public:
 
 private:
 
-    bool m_isFirstMouse = false;
+    bool m_isFirstMouse = true;
     wxPoint m_lastMouse;
 
     std::unique_ptr<wxGLContext> m_context;
