@@ -17,6 +17,10 @@ void GLPanel::ConnectEvents()
     Bind(wxEVT_MOTION,      &GLPanel::OnMouseMove,      this);
     Bind(wxEVT_LEFT_DOWN,   &GLPanel::OnMouseLeftDown,  this);
     Bind(wxEVT_LEFT_UP,     &GLPanel::OnMouseLeftUp,    this);
+
+    Bind(wxEVT_RIGHT_DOWN,   &GLPanel::OnMouseRightDown,  this);
+    Bind(wxEVT_RIGHT_UP,     &GLPanel::OnMouseRightUp,    this);
+
     Bind(wxEVT_MOUSEWHEEL,  &GLPanel::OnMouseScroll,    this);
 }
 
@@ -282,4 +286,25 @@ void GLPanel::OnMouseLeftUp(wxMouseEvent &event)
 
     event.Skip();
 }
+
+void GLPanel::OnMouseRightDown(wxMouseEvent &event)
+{
+    CaptureMouse();
+
+    wxPoint mouse = event.GetPosition();
+    Vector2i pos(mouse.x, mouse.y);
+
+    _arcballCamera->initTransformation(pos);
+
+    event.Skip();
+}
+
+void GLPanel::OnMouseRightUp(wxMouseEvent &event)
+{
+    if ( HasCapture() )
+        ReleaseMouse();
+
+    event.Skip();
+}
+
 

@@ -113,6 +113,8 @@ public:
     void OnKeyDown(wxKeyEvent &event);
     void OnMouseLeftDown(wxMouseEvent &event);
     void OnMouseLeftUp(wxMouseEvent &event);
+    void OnMouseRightDown(wxMouseEvent &event);
+    void OnMouseRightUp(wxMouseEvent &event);
     void OnMouseMove(wxMouseEvent &event);
     void OnMouseScroll(wxMouseEvent &event);
 
