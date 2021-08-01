@@ -42,7 +42,7 @@ https://github.com/mosra/magnum-bootstrap/tree/base-wxwidgets
 
 ![The main GUI](images/main-gui.png)
 
-# The current issue
+# The current issue(as 2021-08-01, this issue is fixed now by using the arcball example code from magnum example)
 
 The mouse scroll event works OK(see `void GLPanel::OnMouseScroll(wxMouseEvent &event)` function), so when you scroll up/down with the mouse's wheel, you can zoom in/out the scene.
 
