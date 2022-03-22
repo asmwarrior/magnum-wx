@@ -159,8 +159,8 @@ void GLPanel::OnResized(wxSizeEvent &event)
     int w = GetSize().GetWidth();
     int h = GetSize().GetHeight();
 
-    //GL::defaultFramebuffer.setViewport({{}, Vector2{w,h}});
-    glViewport(0, 0, GetSize().GetWidth(), GetSize().GetHeight());
+    GL::defaultFramebuffer.setViewport({{}, Vector2i{w,h}});
+    //glViewport(0, 0, GetSize().GetWidth(), GetSize().GetHeight());
 
     _arcballCamera->reshape(Vector2i{w,h}, Vector2i{w,h});
     _shader.setViewportSize(Vector2{w,h});
