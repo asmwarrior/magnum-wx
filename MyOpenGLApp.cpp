@@ -51,7 +51,7 @@ IMPLEMENT_APP(MyApp);
 
 bool MyApp::OnInit()
 {
-    CreateConsole();
+    //CreateConsole();
 
     //(*AppInitialize
     bool wxsOK = true;
