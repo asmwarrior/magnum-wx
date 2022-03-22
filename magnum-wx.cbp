@@ -47,7 +47,7 @@
 		</ResourceCompiler>
 		<Linker>
 			<Add option="-mthreads" />
-			<Add option="`wx-config-msys2 --libs=all --prefix=$(TARGET_COMPILER_DIR)`" />
+			<Add option="`wx-config-msys2 --libs all --prefix=$(TARGET_COMPILER_DIR)`" />
 			<Add library="opengl32" />
 			<Add library="glu32" />
 			<Add library="gdi32" />
